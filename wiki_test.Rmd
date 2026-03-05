@@ -1,0 +1,108 @@
+---
+title: "wiki_test"
+output: pdf_document
+---
+
+```{r}
+library(igraph)
+library(igraphdata)
+library(Matrix)
+#library(tidyr)
+library(readr)
+#library(dbplyr)
+library(tidyverse)
+```
+
+```{r}
+articles <- read_tsv('wikispeedia_paths-and-graph/articles.tsv',
+                       comment = "#",
+                       col_names = c("article_raw"),
+                       show_col_types = FALSE)
+categories <- read.delim('wikispeedia_paths-and-graph/categories.tsv',
+                       comment='#')
+links <- read.delim('wikispeedia_paths-and-graph/links.tsv',
+                       comment='#')
+finished <- read.delim('wikispeedia_paths-and-graph/paths_finished.tsv',
+                       comment='#')
+unfinished <- read.delim('wikispeedia_paths-and-graph/paths_unfinished.tsv',
+                       comment='#')
+shortest_path <- read.delim('wikispeedia_paths-and-graph/shortest-path-distance-matrix.txt')
+```
+
+
+```{r}
+articles
+categories
+links
+finished
+unfinished
+```
+```{r}
+g <- graph_from_data_frame(
+  d = links,
+  directed = TRUE,
+  vertices = articles# %>% select(article) %>% rename(name = article)
+)
+plot(g, vertex.label=NA)
+```
+```{r}
+comp <- components(g, mode = "weak")
+giant_id <- which.max(comp$csize)
+g_giant <- induced_subgraph(g, vids = which(comp$membership == giant_id))
+
+g_giant
+vcount(g_giant); ecount(g_giant)
+print('4589 / 4604 ≈ 99.7% so almost the while network is connected')
+```
+```{r}
+set.seed(1)
+plot(
+  g_giant,
+  vertex.size = 0.1,
+  vertex.label = NA,
+  edge.arrow.size = 0.01,
+  edge.curved = 0.01,
+  layout = layout_with_fr
+)
+```
+
+```{r}
+# Degree
+# degree = indegree + outdegree
+
+deg <- degree(g)
+deg %>% head()
+deg %>% tail()
+```
+
+```{r}
+# Closeness
+cl <- closeness(g, normalized=TRUE) # Each value is based on shortest path distances from that node to all others
+# sort(cl, decreasing=TRUE)
+centr_clo(g) 
+```
+
+```{r}
+# betweenness
+btw <- betweenness(g, directed=TRUE, normalized=TRUE) # counts how often a node lies on shortest paths between other pairs
+# sort(btw, decreasing = TRUE)
+edge_betweenness(g) %>% round(2)
+centr_betw(g, normalized=TRUE)
+```
+
+```{r}
+# Eigen centrality
+# Eigen centralty is adding weights to important nodes. It is looking at how influent some nodes are, not just how connected they are.
+# eigen_centrality(g, directed=TRUE)$vector %>% sort(decreasing=TRUE)
+```
+
+```{r}
+distance_table(g, directed=TRUE)
+# It shows the distribution of shortest path lengths.
+# the results below correspond to shortest path 9 occurs 5 times, 8 occurs 468 times, etc
+```
+
+```{r}
+# shortest_paths(g, from='United_States')
+```
+
