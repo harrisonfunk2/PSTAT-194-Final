@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                       fig.width = 6, fig.height = 4.5, fig.align = "center",
                       out.width = "100%")
 library(igraph)
+library(dplyr)
 library(Matrix)
 set.seed(194)
 ```
@@ -55,12 +56,13 @@ cats <- read.delim("wikispeedia_paths-and-graph/categories.tsv",
 colnames(cats) <- c("article", "category")
 
 # Extract top-level category (e.g., "subject.Science.Physics" -> "Science")
-cats$top_cat <- sapply(strsplit(cats$category, "\\."), function(x) {
-  if (length(x) >= 2) x[2] else "Other"
-})
+cats <- cats %>%
+  mutate(top_cat = sapply(strsplit(category, "\\."), function(x) {
+    if (length(x) >= 2) x[2] else "Other"
+  }))
 
 # Keep first category per article
-cats_unique <- cats[!duplicated(cats$article), ]
+cats_unique <- cats %>% distinct(article, .keep_all = TRUE)
 
 # Assign to vertices
 V(wiki_net)$category <- cats_unique$top_cat[match(V(wiki_net)$name,
@@ -74,7 +76,7 @@ cat("Edges:", ecount(wiki_net), "\n")
 cat("Directed:", is.directed(wiki_net), "\n")
 cat("Density:", round(graph.density(wiki_net), 5), "\n")
 cat("\nTop-level category distribution:\n")
-sort(table(V(wiki_net)$category), decreasing = TRUE)
+V(wiki_net)$category %>% table() %>% sort(decreasing = TRUE)
 ```
 
 ## Induced Subgraphs
@@ -255,7 +257,7 @@ in_deg <- degree(wiki_net, mode = "in")
 out_deg <- degree(wiki_net, mode = "out")
 
 # Top 10 articles by in-degree (most linked-to)
-top_in <- sort(in_deg, decreasing = TRUE)[1:10]
+top_in <- in_deg %>% sort(decreasing = TRUE) %>% head(10)
 cat("Top 10 articles by in-degree (most linked-to):\n")
 data.frame(Article = names(top_in), In_Degree = as.integer(top_in))
 ```
@@ -263,49 +265,54 @@ data.frame(Article = names(top_in), In_Degree = as.integer(top_in))
 ```{r betweenness-top}
 # Betweenness centrality on full network
 btw <- betweenness(wiki_net, directed = TRUE)
-top_btw <- sort(btw, decreasing = TRUE)[1:10]
+top_btw <- btw %>% sort(decreasing = TRUE) %>% head(10)
 cat("Top 10 articles by betweenness centrality:\n")
 data.frame(Article = names(top_btw),
            Betweenness = round(as.numeric(top_btw), 1))
 ```
 
+Beyond degree and betweenness, we also computed closeness centrality and eigenvector centrality for every node. Closeness centrality measures how near an article is to all other articles in the network---articles with high closeness can be reached from anywhere in fewer clicks, which makes them natural stepping stones in the Wikispeedia game. Eigenvector centrality captures a different idea: it gives high scores to articles that are linked to by other important articles, rather than just counting raw connections. Together, these four centrality measures give us a well-rounded picture of which articles play the most important structural roles in the network.
+
 ```{r closeness}
-# Closeness
-cl <- closeness(wiki_net, normalized=TRUE)
-top_cl <- sort(cl, decreasing = TRUE)[1:10]
+# Closeness centrality
+cl <- closeness(wiki_net, normalized = TRUE)
+top_cl <- cl %>% sort(decreasing = TRUE) %>% head(10)
 cat("Top 10 articles by closeness centrality:\n")
 data.frame(Article = names(top_cl),
-           Closeness= round(as.numeric(top_cl), 3))
+           Closeness = round(as.numeric(top_cl), 3))
 ```
 
-```{r}
-# Eigen centrality
-eigen <- eigen_centrality(wiki_net, directed=TRUE)$vector %>% sort(decreasing=TRUE)
-top_eigen <- eigen[1:10]
-cat("Top 10 articles by Eigen centrality:\n")
+```{r eigen-centrality}
+# Eigenvector centrality
+eigen_vals <- eigen_centrality(wiki_net, directed = TRUE)$vector %>%
+  sort(decreasing = TRUE)
+top_eigen <- eigen_vals %>% head(10)
+cat("Top 10 articles by eigenvector centrality:\n")
 data.frame(Article = names(top_eigen),
-           'Eigen Centrality'= round(as.numeric(top_eigen), 3))
+           Eigen_Centrality = round(as.numeric(top_eigen), 3))
 ```
 
 ```{r degree-dist, fig.width=7, fig.height=3.5}
 par(mfrow = c(1, 2))
 
 # In-degree distribution (log-log)
-in_tab <- table(in_deg)
+in_tab <- in_deg %>% table()
 plot(as.numeric(names(in_tab)), as.numeric(in_tab),
      log = "xy", pch = 16, cex = 0.7, col = "steelblue",
      xlab = "In-Degree (k)", ylab = "Frequency",
      main = "In-Degree Distribution (log-log)")
 
 # Out-degree distribution (log-log)
-out_tab <- table(out_deg)
+out_tab <- out_deg %>% table()
 plot(as.numeric(names(out_tab)), as.numeric(out_tab),
      log = "xy", pch = 16, cex = 0.7, col = "tomato",
      xlab = "Out-Degree (k)", ylab = "Frequency",
      main = "Out-Degree Distribution (log-log)")
 ```
 
-The in-degree distribution follows a heavy-tailed pattern on the log-log plot, which is characteristic of many real-world networks. A small number of articles---broad topics like "United States," "Europe," or "World War II"---receive an enormous number of incoming links, while most articles are linked to by only a handful of others. The out-degree distribution is somewhat less skewed, since the number of outgoing links from an article depends more on how long and detailed the article is. The top hubs by betweenness centrality tend to be broad, well-connected articles that serve as bridges between different knowledge domains.
+The in-degree distribution follows a heavy-tailed pattern on the log-log plot, which is characteristic of many real-world networks. A small number of articles---broad topics like "United States," "Europe," or "World War II"---receive an enormous number of incoming links, while most articles are linked to by only a handful of others. The out-degree distribution is somewhat less skewed, since the number of outgoing links from an article depends more on how long and detailed the article is.
+
+Looking across all four centrality measures, we see that the same handful of broad, high-level articles tend to dominate. Articles with high betweenness serve as bridges between different knowledge domains, while articles with high closeness sit at the center of the network and can be reached quickly from almost anywhere. The eigenvector centrality rankings highlight articles that are not just well-connected themselves but are connected to other well-connected articles, reinforcing their importance as navigation hubs. There is substantial overlap among the top-ranked articles across these measures, which suggests that the Wikispeedia network has a clear core of highly central articles that players are likely to pass through regardless of their starting point or destination.
 
 ## Community Detection
 
@@ -353,8 +360,10 @@ All three algorithms find meaningful community structure, with modularity scores
 
 ```{r community-interpret}
 # Use the algorithm with highest modularity
-best <- list(fg, lv, wt)[[which.max(c(modularity(fg), modularity(lv), modularity(wt)))]]
-best_name <- c("Fast Greedy", "Louvain", "Walktrap")[which.max(c(modularity(fg), modularity(lv), modularity(wt)))]
+mod_scores <- c(modularity(fg), modularity(lv), modularity(wt))
+best_idx <- which.max(mod_scores)
+best <- list(fg, lv, wt)[[best_idx]]
+best_name <- c("Fast Greedy", "Louvain", "Walktrap")[best_idx]
 
 cat("Best algorithm:", best_name, "\n\n")
 cat("Category composition of top communities:\n\n")
@@ -447,7 +456,7 @@ Our analysis of the Wikispeedia network revealed several key findings:
 
 **Network structure.** The Wikispeedia hyperlink graph is a sparse, directed network with small-world properties. Despite having over 4,600 articles and 119,000+ links, the average path length in the largest strongly connected component is short, meaning most articles can be reached from any other article in just a few clicks. This is precisely the property that makes the Wikispeedia game playable.
 
-**Hub articles.** A small number of articles serve as major hubs, receiving far more incoming links than average. These tend to be broad, high-level topics like countries, historical periods, and major scientific concepts. The in-degree distribution follows a heavy-tailed pattern consistent with many real-world networks, where a few nodes are far more connected than the rest.
+**Hub articles.** A small number of articles serve as major hubs, receiving far more incoming links than average. These tend to be broad, high-level topics like countries, historical periods, and major scientific concepts. The in-degree distribution follows a heavy-tailed pattern consistent with many real-world networks, where a few nodes are far more connected than the rest. Four centrality measures---degree, betweenness, closeness, and eigenvector centrality---consistently identify the same core set of hub articles, confirming their structural importance from multiple perspectives.
 
 **Community structure.** All three community detection algorithms---Fast Greedy, Louvain, and Walktrap---identified meaningful community structure with modularity scores well above zero. The communities align with the known subject categories of the articles, confirming that Wikipedia's hyperlink structure reflects the underlying organization of knowledge by topic.
 
