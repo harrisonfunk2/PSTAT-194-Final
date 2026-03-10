@@ -25,19 +25,17 @@ set.seed(194)
 
 # Introduction
 
-Wikispeedia is an online human-computation game in which players attempt to navigate from one Wikipedia article to another using only hyperlinks embedded in the articles themselves. The game was built on a condensed version of Wikipedia containing 4,604 articles and over 119,000 hyperlinks between them. It was developed by Robert West and Jure Leskovec at Stanford University as a tool for studying how people find information in complex networks.
+Wikispeedia is an online game where players attempt to navigate from one Wikipedia article to another using only hyperlinks embedded in the articles. The game is built on a condensed version of Wikipedia containing only 4,604 articles and over 119,000 hyperlinks between them. Robert West and Jure Leskovec created it at Stanford University as a tool for studying how people find information in complex networks.
 
-For this project, we treat the Wikipedia hyperlink structure behind Wikispeedia as a directed network. Each article is a node, and a directed edge from article A to article B indicates that article A contains a hyperlink to article B. This gives us a rich, real-world information network to explore.
+For this project, we treat the Wikipedia hyperlink structure behind Wikispeedia as a directed network. Each article is a node, and if there is a hyperlink connecting two articles, then there is a directed edge. This gives us a real-world information network to explore.
 
-Our analysis has several goals. First, we want to understand the basic structure of the network---how dense it is, how far apart articles tend to be, and which articles serve as major hubs. Second, we want to identify communities of topically related articles using multiple community detection algorithms and see whether those communities align with known subject categories. Third, we want to examine the adjacency matrix to visualize community structure directly. Finally, we use a Monte Carlo null model test to verify that the community structure we find is genuinely meaningful and not just an artifact of random wiring.
+Our analysis has several goals. First, we want to understand the basic structure of the network by checking how dense it is, how far apart articles are from each other, and which articles serve as major hubs. Second, we want to identify communities of topically related articles using multiple detection algorithms and see whether those communities align with known Wikipedia categories. Third, we want to examine the adjacency matrix to visualize community structure. Finally, we use a Monte Carlo null model test to verify that the community structure we find is meaningful and not random.
 
 # Methodology
 
 ## Data Loading and Preparation
 
-We loaded the Wikispeedia dataset from the SNAP repository. The primary data files are a list of articles (nodes), a list of hyperlinks between articles (directed edges), and a file of hierarchical category labels for each article. All files are tab-separated with comment headers.
-
-We used R with the `igraph` package for all network construction and analysis, `dplyr` for data wrangling, and the `Matrix` package for sparse adjacency matrix operations. The edge list was read directly into a directed `igraph` object using `graph_from_data_frame()`. We then attached top-level subject categories (e.g., Science, History, Geography) as vertex attributes by parsing the hierarchical category strings.
+We loaded the Wikispeedia dataset from the SNAP repository. This dataset contains 6 files but we use the two files `links.tsv` and `categories.tsv` to create our igraph dataset. `links.tsv` shows all of the edges in the network. `categories.tsv` shows the pre-made Wikispeedia categories. 
 
 ```{r}
 # Read the edge list
@@ -78,7 +76,7 @@ cat("The full network contains", vcount(wiki_net), "nodes and",
 
 ## Induced Subgraphs
 
-Following the project guidelines, we generated four induced subgraphs by randomly sampling 200 nodes from the full network. Each subgraph retains all edges that exist between the sampled nodes, preserving the local link structure of the original network. We set a seed for reproducibility.
+We generated four induced subgraphs by randomly sampling 200 nodes from the full network. Each subgraph keeps all edges that exist between the sampled nodes, preserving the local link structure of the original network.
 
 ```{r}
 set.seed(194)
@@ -101,7 +99,7 @@ knitr::kable(subgraph_summary, caption = "Summary of four induced subgraphs (200
 
 ## Network Visualization
 
-We visualized each subgraph using three different layout algorithms: Fruchterman-Reingold (a force-directed layout that spreads nodes evenly), Kamada-Kawai (which places nodes so that graph-theoretic distances match geometric distances), and a circular layout (which places all nodes on a circle, making the internal edge structure easy to see). Nodes are colored by their top-level Wikipedia category and sized proportionally to their total degree.
+We visualized each subgraph using three different algorithms: Fruchterman-Reingold (a layout that spreads nodes evenly), Kamada-Kawai (places nodes so that graph-theoretic distances match geometric distances), and a circular layout (which places all nodes on a circle, making the internal edge structure easy to see). Nodes are colored by their top-level Wikipedia category and sized proportionally to their total degree.
 
 ```{r}
 # Create a consistent color palette for categories for graphs
@@ -138,9 +136,9 @@ legend("bottomleft", legend = all_cats, fill = cat_colors,
        title.cex = 0.7, x.intersp = 0.8, y.intersp = 1.1)
 ```
 
-The same three layout algorithms were also applied to subgraphs 2, 3, and 4; those plots are provided in the Appendix for reference.
+The same three layout algorithms were also applied to subgraphs 2, 3, and 4, and those plots are provided in the Appendix for reference.
 
-Across all four subgraphs and three layouts, a consistent pattern emerges: the force-directed layouts naturally pull well-connected nodes toward the center and push isolated nodes to the periphery. Some nodes clearly act as hubs, drawing many edges and sitting at the center of their clusters. The circular layout makes it easy to see the overall density of connections and highlights that edges are not evenly distributed---certain regions have far more crossing edges, corresponding to densely interconnected groups of articles.
+Across all four subgraphs and three layouts, we notice a pattern: the force-directed layouts naturally pull well-connected nodes toward the center and push the more isolated nodes to the outside. Some nodes act as hubs, drawing many edges and sitting at the center of their clusters. The circular layout makes it easy to see the overall density of connections and highlights that edges are not evenly distributed, as certain regions have more crossing edges, corresponding to densely interconnected groups of articles.
 
 ## Network Metrics
 
@@ -178,7 +176,7 @@ metrics_df <- data.frame(
 knitr::kable(metrics_df, caption = "Whole-network metrics for the Wikispeedia hyperlink graph")
 ```
 
-The network is relatively sparse, which is typical for information networks of this size. The reciprocity tells us what fraction of links are mutual---if article A links to B, how often does B link back to A. The global clustering coefficient captures the tendency for articles to form tightly interconnected triangles. The diameter and average path length, computed on the largest strongly connected component, tell us how many clicks it takes to get between articles. A small diameter relative to the network size is a hallmark of "small-world" networks.
+The network is pretty scattered, which is common for information networks of this size. The reciprocity tells us what fraction of links are mutual as in if article A links to B, how often does B link back to A. The global clustering coefficient measures the tendency for articles to form tightly interconnected triangles. The diameter and average path length, computed on the largest strongly connected component, tell us how many clicks it takes to get between articles.
 
 ### Node-Level Metrics
 
@@ -202,7 +200,7 @@ data.frame(Article = names(top_btw),
            Betweenness = round(as.numeric(top_btw), 1))
 ```
 
-Beyond degree and betweenness, we also computed eigenvector centrality for every node. Eigenvector centrality captures a different idea from simple degree counting: it gives high scores to articles that are linked to by other important articles. An article can have a modest number of connections but still rank highly if its neighbors are themselves well-connected hubs. Together, these three centrality measures give us a well-rounded picture of which articles play the most important structural roles in the network.
+Beyond degree and betweenness, we also computed eigenvector centrality for every node. Eigenvector centrality gives high scores to articles that are linked to by other important articles. An article can have a lower number of connections but still rank highly if its neighbors are themselves well-connected hubs. These three centrality measures give us an idea of which articles have the most important structural roles in the network.
 
 ```{r}
 # Eigenvector centrality
@@ -232,11 +230,11 @@ plot(as.numeric(names(out_tab)), as.numeric(out_tab),
      main = "Out-Degree Distribution (log-log)")
 ```
 
-The in-degree distribution follows a heavy-tailed pattern on the log-log plot, which is characteristic of many real-world networks. A small number of articles receive an enormous number of incoming links, while most articles are linked to by only a handful of others. The out-degree distribution is somewhat less skewed, since the number of outgoing links depends more on how detailed an article is. Looking across all three centrality measures, the same handful of broad, high-level articles tend to dominate, suggesting the Wikispeedia network has a clear core of highly central articles that players are likely to pass through regardless of their route.
+The in-degree distribution follows a heavy-tailed pattern on the log-log plot, which is characteristic of many real-world networks. A small number of articles receive a large number of incoming links, while most articles are linked to by only a few others. The out-degree distribution is somewhat less skewed, since the number of outgoing links depends more on how detailed an article is. Looking across all three centrality measures, the same handful of broad articles tend to dominate, suggesting the Wikispeedia network has a clear core of highly central articles that players are likely to pass through regardless of their route.
 
 ### Edge-Level Metrics
 
-At the edge level, we examined edge betweenness centrality, which counts how many shortest paths pass through each edge. Edges with high betweenness act as bridges between different regions of the network---if they were removed, paths between certain articles would become much longer.
+At the edge level, we examined edge betweenness centrality, which counts how many shortest paths pass through each edge. Edges with high betweenness act as bridges between different regions of the network, if they were removed, paths between certain articles would become much longer.
 
 ```{r}
 ebtw <- edge_betweenness(wiki_net, directed = TRUE)
@@ -250,11 +248,12 @@ data.frame(From = top_edge_list[, 1],
            Edge_Betweenness = round(ebtw[top_edges_idx], 1))
 ```
 
-The edge betweenness distribution is heavily right-skewed: most edges carry relatively few shortest paths, but a small number of edges are critical bridges. These high-betweenness edges tend to connect articles in different subject domains---for instance, linking a history article to a geography article---and their removal would substantially increase path lengths between those domains. This complements the reciprocity reported in the whole-network metrics table, which showed that a meaningful fraction of links are bidirectional, reflecting the tendency for related articles to cross-reference each other.
+The edge betweenness distribution is heavily right-skewed indicating most edges carry relatively few shortest paths, but a small number of edges are critical bridges. These high-betweenness edges tend to connect articles in different subject domains. For example, linking a history article to a geography article, their removal would substantially increase path lengths between those domains. This adds to the reciprocity reported in the whole network metrics table, which showed that a fraction of links are bidirectional. This shows the tendency for related articles to cross reference each other.
+
 
 ## Community Detection
 
-We ran three community detection algorithms on an undirected version of subgraph 1 to identify clusters of closely related articles. We used a subgraph rather than the full network to keep computation tractable while still revealing meaningful structure.
+We ran three community detection algorithms on an undirected version of subgraph 1 to identify clusters of closely related articles. We used a subgraph rather than the full network to keep computation more simple while still revealing meaningful structure.
 
 ```{r}
 sub1_und <- as.undirected(sub1, mode = "collapse")
@@ -293,7 +292,7 @@ plot(wt, sub1_und, vertex.size = 5, vertex.label = NA,
      main = paste0("Walktrap (Q=", round(modularity(wt), 3), ")"))
 ```
 
-All three algorithms find meaningful community structure, with modularity scores well above zero. The Louvain method and Fast Greedy tend to produce similar results, which is reassuring---it suggests the communities are robust features of the network and not artifacts of a particular algorithm.
+All three algorithms find meaningful community structure, with modularity scores well above zero. The Louvain method and Fast Greedy tend to produce similar results, which suggests the communities are strong features of the network.
 
 ```{r, results='asis'}
 mod_scores <- c(modularity(fg), modularity(lv), modularity(wt))
@@ -324,7 +323,7 @@ knitr::kable(comp_df,
              caption = paste0("Category composition of the five largest communities detected by ", best_name))
 ```
 
-The communities generally cluster along topical lines, which makes intuitive sense. To verify that this pattern is not unique to one particular random sample, we also ran Louvain community detection on the other three subgraphs:
+The communities generally cluster along topical lines, which makes sense. To verify that this pattern is not unique to one particular random sample, we also ran Louvain community detection on the other three subgraphs:
 
 ```{r}
 sub_und_list <- lapply(list(sub1, sub2, sub3, sub4), as.undirected, mode = "collapse")
@@ -339,9 +338,9 @@ knitr::kable(cross_sub,
              caption = "Louvain community detection across all four subgraphs")
 ```
 
-All four subgraphs show comparable modularity values and similar numbers of communities, indicating that the community structure we observe on subgraph 1 is not an artifact of one particular random sample but a stable feature of the underlying network.
+All four subgraphs show comparable modularity values and similar numbers of communities, indicating that the community structure we observe on subgraph 1 is a consistent feature of the underlying network.
 
-> **Note on Louvain stochasticity:** The Louvain algorithm is non-deterministic---it uses randomized local moves during optimization and can produce slightly different partitions across runs even on the same graph. As a result, the number of communities and modularity score reported for subgraph 1 in Table 3 (single run at algorithm-comparison time) may differ slightly from the values in Table 4 (independent run during cross-subgraph comparison). This is expected behavior and does not indicate an error; both runs reflect valid high-modularity partitions of the same network.
+Since the Louvain algorithm uses random local moves during optimization, it yields slightly different partitions each time it runs. This explains the minor variations in subgraph 1's metrics between Tables 3 and 4.
 
 ## Adjacency Matrix
 
@@ -364,7 +363,7 @@ The reordered matrix shows clear block structure along the diagonal. Each block 
 
 ## Monte Carlo Null Model Test
 
-To confirm that the community structure is statistically meaningful, we performed a Monte Carlo null model test on the full network. We ran Louvain on the full undirected Wikispeedia graph and recorded its modularity, then generated 1,000 Erdos-Renyi random graphs with the same number of nodes and edges and applied the same algorithm to each. We use the full network rather than a subgraph because random 200-node subgraphs are extremely sparse, and Erdos-Renyi graphs at that sparsity fragment into many disconnected components, inflating their modularity artificially.
+To confirm that the community structure is statistically meaningful, we performed a Monte Carlo null model test on the full network. We ran Louvain on the full undirected Wikispeedia graph and recorded its modularity, then generated 1,000 Erdos-Renyi random graphs with the same number of nodes and edges and applied the same algorithm to each. We use the full network rather than a subgraph because random 200-node subgraphs are extremely scattered, which falsely inflates their modularity.
 
 ```{r, fig.width=6, fig.height=4, cache=TRUE}
 wiki_und <- as.undirected(wiki_net, mode = "collapse")
@@ -406,19 +405,19 @@ The observed modularity (red dashed line) falls far to the right of the null dis
 
 Our analysis yielded several concrete findings about the Wikispeedia network:
 
-The network has a diameter of `r diam` and an average path length of `r round(avg_path, 2)` within its largest strongly connected component, confirming small-world properties that make the Wikispeedia game playable---most articles are reachable in just a few clicks. The reciprocity of `r round(recip, 3)` indicates that roughly `r round(recip * 100, 1)`% of hyperlinks are mutual, reflecting the tendency of related articles to cross-reference each other.
+The network has a diameter of `r diam` and an average path length of `r round(avg_path, 2)` within its largest strongly connected component, confirming small-world properties that make the Wikispeedia game playable as most articles are reachable in just a few clicks. The reciprocity of `r round(recip, 3)` indicates that roughly `r round(recip * 100, 1)`% of hyperlinks are mutual, reflecting the tendency of related articles to cross-reference each other.
 
-Three centrality measures---degree, betweenness, and eigenvector centrality---consistently identify the same core set of hub articles. The in-degree distribution is heavy-tailed, with a handful of broad topics dominating incoming links while most articles have only a few. At the edge level, edge betweenness is similarly skewed: a small fraction of edges act as critical bridges between subject domains.
+Three centrality measures (degree, betweenness, and eigenvector centrality) consistently identify the same core set of hub articles. The in-degree distribution is heavy-tailed, with a handful of broad topics dominating incoming links while most articles have only a few. At the edge level, edge betweenness is similarly skewed: a small fraction of edges act as critical bridges between subject domains.
 
-Community detection with Fast Greedy, Louvain, and Walktrap all produced modularity scores well above zero on subgraph 1, and Louvain applied across all four subgraphs yielded consistent results, confirming the stability of the community structure. The detected communities align with known article categories---science articles cluster with science, history with history, and so on. Reordering the adjacency matrix by community membership revealed clear block-diagonal structure, visually corroborating these findings.
+Community detection with Fast Greedy, Louvain, and Walktrap all produced modularity scores well above zero on subgraph 1, and Louvain applied across all four subgraphs yielded consistent results, confirming the stability of the community structure. The detected communities align with known article categories as science articles cluster with science, history with history, and so on. Reordering the adjacency matrix by community membership revealed clear block-diagonal structure, visually confirming these findings.
 
 Finally, the Monte Carlo null model test over 1,000 random graphs confirmed that the observed modularity of `r round(Q_obs, 4)` is significantly higher than the null distribution (p = `r p_val`), ruling out chance as an explanation for the community structure.
 
 # Conclusion
 
-This project explored the structure of the Wikispeedia hyperlink network through visualization, centrality analysis, community detection, adjacency matrix examination, and statistical testing. The network exhibits properties common to many real-world information networks: it is sparse, has a heavy-tailed degree distribution, shows small-world characteristics, and contains well-defined communities that correspond to real topical categories.
+This project explored the structure of the Wikispeedia hyperlink network through visualization, centrality analysis, community detection, adjacency matrix examination, and statistical testing. The network exhibits properties common to many real-world information networks like how it is sparse, has a heavy-tailed degree distribution, shows small-world characteristics, and contains well-defined communities that correspond to real categories.
 
-One interesting direction for future work would be to incorporate the navigation path data that comes with the Wikispeedia dataset. By analyzing which paths players actually take, we could build a weighted network where edge weights reflect how frequently each link is clicked. This would let us study not just the static hyperlink structure, but the dynamic patterns of how humans actually navigate through the network. Another extension would be to compare different null models---for example, using a configuration model that preserves the degree sequence rather than just the number of edges, which would provide a stricter test of community significance.
+One interesting direction for future work would be to incorporate the navigation path data that comes with the Wikispeedia dataset. By analyzing which paths players actually take, we could build a weighted network where edge weights reflect how frequently each link is clicked. This would let us study the dynamic patterns of how humans actually navigate through the network instead of just the static hyperlink structure. Another extension would be to compare different null models. For example, using a configuration model that preserves the degree sequence would provide a stricter test of community significance.
 
 # References
 
