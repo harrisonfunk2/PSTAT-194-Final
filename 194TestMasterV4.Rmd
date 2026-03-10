@@ -11,7 +11,7 @@ output:
     df_print: paged
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
                       fig.width = 6, fig.height = 4.5, fig.align = "center",
                       out.width = "100%")
@@ -39,7 +39,7 @@ We loaded the Wikispeedia dataset from the SNAP repository. The primary data fil
 
 We used R with the `igraph` package for all network construction and analysis, `dplyr` for data wrangling, and the `Matrix` package for sparse adjacency matrix operations. The edge list was read directly into a directed `igraph` object using `graph_from_data_frame()`. We then attached top-level subject categories (e.g., Science, History, Geography) as vertex attributes by parsing the hierarchical category strings.
 
-```{r load-data}
+```{r}
 # Read the edge list (skip comment lines starting with #)
 edges <- read.delim("wikispeedia_paths-and-graph/links.tsv",
                     header = FALSE, comment.char = "#",
@@ -70,7 +70,7 @@ V(wiki_net)$category <- cats_unique$top_cat[match(V(wiki_net)$name,
 V(wiki_net)$category[is.na(V(wiki_net)$category)] <- "Uncategorized"
 ```
 
-```{r basic-stats, results='asis'}
+```{r, results='asis'}
 cat("The full network contains", vcount(wiki_net), "nodes and",
     ecount(wiki_net), "directed edges, with a density of",
     round(graph.density(wiki_net), 5), ".\n")
@@ -80,7 +80,7 @@ cat("The full network contains", vcount(wiki_net), "nodes and",
 
 Following the project guidelines, we generated four induced subgraphs by randomly sampling 200 nodes from the full network. Each subgraph retains all edges that exist between the sampled nodes, preserving the local link structure of the original network. We set a seed for reproducibility.
 
-```{r subgraphs}
+```{r}
 set.seed(194)
 sub1 <- induced_subgraph(wiki_net, sample(V(wiki_net), 200))
 sub2 <- induced_subgraph(wiki_net, sample(V(wiki_net), 200))
@@ -103,15 +103,15 @@ knitr::kable(subgraph_summary, caption = "Summary of four induced subgraphs (200
 
 We visualized each subgraph using three different layout algorithms: Fruchterman-Reingold (a force-directed layout that spreads nodes evenly), Kamada-Kawai (which places nodes so that graph-theoretic distances match geometric distances), and a circular layout (which places all nodes on a circle, making the internal edge structure easy to see). Nodes are colored by their top-level Wikipedia category and sized proportionally to their total degree.
 
-```{r color-palette}
+```{r}
 # Create a consistent color palette for categories
 all_cats <- sort(unique(V(wiki_net)$category))
 cat_colors <- rainbow(length(all_cats), alpha = 0.8)
 names(cat_colors) <- all_cats
 ```
 
-```{r viz-sub1, fig.width=10, fig.height=5}
-par(mfrow = c(1, 3), mar = c(1, 1, 2.5, 1))
+```{r, fig.width=10, fig.height=5}
+par(mfrow = c(1, 1), mar = c(1, 1, 2.5, 1))
 node_col1 <- cat_colors[V(sub1)$category]
 node_size1 <- 3 + 2 * sqrt(degree(sub1))
 
@@ -149,7 +149,7 @@ Across all four subgraphs and three layouts, a consistent pattern emerges: the f
 
 We computed several standard metrics on the full Wikispeedia network to characterize its global structure.
 
-```{r whole-metrics}
+```{r}
 # Reciprocity
 recip <- reciprocity(wiki_net)
 
@@ -183,7 +183,7 @@ The network is relatively sparse, which is typical for information networks of t
 
 ### Node-Level Metrics
 
-```{r node-metrics}
+```{r}
 # In-degree and out-degree for full network
 in_deg <- degree(wiki_net, mode = "in")
 out_deg <- degree(wiki_net, mode = "out")
@@ -194,7 +194,7 @@ cat("Top 10 articles by in-degree (most linked-to):\n")
 data.frame(Article = names(top_in), In_Degree = as.integer(top_in))
 ```
 
-```{r betweenness-top}
+```{r}
 # Betweenness centrality on full network
 btw <- betweenness(wiki_net, directed = TRUE)
 top_btw <- btw %>% sort(decreasing = TRUE) %>% head(10)
@@ -205,7 +205,7 @@ data.frame(Article = names(top_btw),
 
 Beyond degree and betweenness, we also computed eigenvector centrality for every node. Eigenvector centrality captures a different idea from simple degree counting: it gives high scores to articles that are linked to by other important articles. An article can have a modest number of connections but still rank highly if its neighbors are themselves well-connected hubs. Together, these three centrality measures give us a well-rounded picture of which articles play the most important structural roles in the network.
 
-```{r eigen-centrality}
+```{r}
 # Eigenvector centrality
 eigen_vals <- eigen_centrality(wiki_net, directed = TRUE)$vector %>%
   sort(decreasing = TRUE)
@@ -215,7 +215,7 @@ data.frame(Article = names(top_eigen),
            Eigen_Centrality = round(as.numeric(top_eigen), 3))
 ```
 
-```{r degree-dist, fig.width=7, fig.height=3.5}
+```{r, fig.width=7, fig.height=3.5}
 par(mfrow = c(1, 2))
 
 # In-degree distribution (log-log)
@@ -239,7 +239,7 @@ The in-degree distribution follows a heavy-tailed pattern on the log-log plot, w
 
 At the edge level, we examined edge betweenness centrality, which counts how many shortest paths pass through each edge. Edges with high betweenness act as bridges between different regions of the network---if they were removed, paths between certain articles would become much longer.
 
-```{r edge-metrics}
+```{r}
 ebtw <- edge_betweenness(wiki_net, directed = TRUE)
 cat("Edge betweenness summary:\n")
 summary(ebtw)
@@ -257,7 +257,7 @@ The edge betweenness distribution is heavily right-skewed: most edges carry rela
 
 We ran three community detection algorithms on an undirected version of subgraph 1 to identify clusters of closely related articles. We used a subgraph rather than the full network to keep computation tractable while still revealing meaningful structure.
 
-```{r community-detection}
+```{r}
 # Convert subgraph 1 to undirected for community detection
 sub1_und <- as.undirected(sub1, mode = "collapse")
 
@@ -279,7 +279,7 @@ knitr::kable(comm_compare,
              caption = "Comparison of community detection algorithms on Subgraph 1")
 ```
 
-```{r community-viz, fig.width=7, fig.height=3.5}
+```{r, fig.width=7, fig.height=3.5}
 par(mfrow = c(1, 3), mar = c(1, 1, 2, 1))
 
 plot(fg, sub1_und, vertex.size = 5, vertex.label = NA,
@@ -297,7 +297,7 @@ plot(wt, sub1_und, vertex.size = 5, vertex.label = NA,
 
 All three algorithms find meaningful community structure, with modularity scores well above zero. The Louvain method and Fast Greedy tend to produce similar results, which is reassuring---it suggests the communities are robust features of the network and not artifacts of a particular algorithm.
 
-```{r community-interpret, results='asis'}
+```{r, results='asis'}
 # Use the algorithm with highest modularity
 mod_scores <- c(modularity(fg), modularity(lv), modularity(wt))
 best_idx <- which.max(mod_scores)
@@ -329,7 +329,7 @@ knitr::kable(comp_df,
 
 The communities generally cluster along topical lines, which makes intuitive sense. To verify that this pattern is not unique to one particular random sample, we also ran Louvain community detection on the other three subgraphs:
 
-```{r community-other-subs}
+```{r}
 # Run Louvain on all four subgraphs for comparison
 sub_und_list <- lapply(list(sub1, sub2, sub3, sub4), as.undirected, mode = "collapse")
 lv_all <- lapply(sub_und_list, cluster_louvain)
@@ -351,7 +351,7 @@ All four subgraphs show comparable modularity values and similar numbers of comm
 
 We examined the adjacency matrix of subgraph 1 before and after reordering the nodes by their community membership. The original ordering is essentially arbitrary, so the adjacency matrix appears as a scattered pattern of dots. After reordering, nodes in the same community are placed next to each other, revealing block-diagonal structure.
 
-```{r adj-matrix, fig.width=7, fig.height=3.5}
+```{r, fig.width=7, fig.height=3.5}
 par(mfrow = c(1, 2), mar = c(2, 2, 3, 1))
 
 A1 <- as_adjacency_matrix(sub1, sparse = TRUE)
@@ -372,7 +372,7 @@ The reordered matrix shows clear block structure along the diagonal. Each block 
 
 To confirm that the community structure is statistically meaningful, we performed a Monte Carlo null model test on the full network. We ran Louvain on the full undirected Wikispeedia graph and recorded its modularity, then generated 1,000 Erdos-Renyi random graphs with the same number of nodes and edges and applied the same algorithm to each. We use the full network rather than a subgraph because random 200-node subgraphs are extremely sparse, and Erdos-Renyi graphs at that sparsity fragment into many disconnected components, inflating their modularity artificially.
 
-```{r monte-carlo, fig.width=6, fig.height=4}
+```{r, fig.width=6, fig.height=4, cache=TRUE}
 # Run Louvain on full undirected network for observed modularity
 wiki_und <- as.undirected(wiki_net, mode = "collapse")
 lv_full <- cluster_louvain(wiki_und)
@@ -453,7 +453,7 @@ All R code used in this analysis is reproduced below.
 
 The following plots show subgraphs 2, 3, and 4 visualized under the same three layout algorithms used for subgraph 1 in the main text. Nodes are colored by top-level Wikipedia category and sized by total degree.
 
-```{r viz-sub2-appendix, fig.width=10, fig.height=5, fig.cap="Subgraph 2 visualized under three layout algorithms."}
+```{r, fig.width=10, fig.height=5, fig.cap="Subgraph 2 visualized under three layout algorithms."}
 par(mfrow = c(1, 3), mar = c(1, 1, 2.5, 1))
 node_col2 <- cat_colors[V(sub2)$category]
 node_size2 <- 3 + 2 * sqrt(degree(sub2))
@@ -477,7 +477,7 @@ plot(sub2, layout = layout_in_circle(sub2),
      main = "Subgraph 2 - Circular")
 ```
 
-```{r viz-sub3-appendix, fig.width=10, fig.height=5, fig.cap="Subgraph 3 visualized under three layout algorithms."}
+```{r, fig.width=10, fig.height=5, fig.cap="Subgraph 3 visualized under three layout algorithms."}
 par(mfrow = c(1, 3), mar = c(1, 1, 2.5, 1))
 node_col3 <- cat_colors[V(sub3)$category]
 node_size3 <- 3 + 2 * sqrt(degree(sub3))
@@ -501,7 +501,7 @@ plot(sub3, layout = layout_in_circle(sub3),
      main = "Subgraph 3 - Circular")
 ```
 
-```{r viz-sub4-appendix, fig.width=10, fig.height=5, fig.cap="Subgraph 4 visualized under three layout algorithms."}
+```{r, fig.width=10, fig.height=5, fig.cap="Subgraph 4 visualized under three layout algorithms."}
 par(mfrow = c(1, 3), mar = c(1, 1, 2.5, 1))
 node_col4 <- cat_colors[V(sub4)$category]
 node_size4 <- 3 + 2 * sqrt(degree(sub4))
@@ -525,7 +525,7 @@ plot(sub4, layout = layout_in_circle(sub4),
      main = "Subgraph 4 - Circular")
 ```
 
-```{r appendix-legend, fig.width=5, fig.height=3, fig.cap="Category color legend for all subgraph visualizations."}
+```{r, fig.width=5, fig.height=3, fig.cap="Category color legend for all subgraph visualizations."}
 par(mar = c(0, 0, 1, 0))
 plot.new()
 legend("center", legend = all_cats, fill = cat_colors,
