@@ -340,7 +340,7 @@ knitr::kable(cross_sub,
 
 All four subgraphs show comparable modularity values and similar numbers of communities, indicating that the community structure we observe on subgraph 1 is a consistent feature of the underlying network.
 
-Since the Louvain algorithm uses random local moves during optimization, it yields slightly different partitions each time it runs. This explains the minor variations in subgraph 1's metrics between Tables 3 and 4.
+Since the Louvain algorithm uses random local moves during optimization, it yields slightly different partitions each time it runs. This explains the minor variations in subgraph 1's metrics between Tables 3 and 5.
 
 ## Adjacency Matrix
 
@@ -421,13 +421,7 @@ One interesting direction for future work would be to incorporate the navigation
 
 # References
 
-1. West, R. and Leskovec, J. (2012). Human Wayfinding in Information Networks. *21st International World Wide Web Conference (WWW)*.
-
-2. West, R., Pineau, J., and Precup, D. (2009). Wikispeedia: An Online Game for Inferring Semantic Distances between Concepts. *21st International Joint Conference on Artificial Intelligence (IJCAI)*.
-
-3. SNAP Dataset: Wikispeedia navigation paths. Stanford Network Analysis Project. https://snap.stanford.edu/data/wikispeedia.html
-
-4. Csardi, G. and Nepusz, T. (2006). The igraph software package for complex network research. *InterJournal, Complex Systems*, 1695.
+1. SNAP Dataset: Wikispeedia navigation paths. Stanford Network Analysis Project. https://snap.stanford.edu/data/wikispeedia.html
 
 \newpage
 
